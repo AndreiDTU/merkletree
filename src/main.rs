@@ -1,35 +1,63 @@
+use std::io::{self, Write};
+
 use sha3::{Shake256, digest::{ExtendableOutput, Update, XofReader}};
 
 const LAMBDA: usize = 256;
 
-fn main() {
-    let tree = merkle_tree(arr_to_vec(*b"Hello, world!"), vec![false; LAMBDA]);
+fn main() -> io::Result<()> {
+    let mut s = String::new();
+    let mut m = String::new();
+
+    let stdin = io::stdin();
+    print!("s = ");
+    io::stdout().flush()?;
+    stdin.read_line(&mut s)?;
+    print!("m = ");
+    io::stdout().flush()?;
+    stdin.read_line(&mut m)?;
+
+    let tree = merkle_tree(
+        arr_to_vec(m.as_bytes().try_into().unwrap()),
+        arr_to_vec(s.as_bytes().try_into().unwrap()),
+    );
     for byte in tree {
         print!("{}", byte as char);
     }
+
+    Ok(())
 }
 
 fn merkle_tree(m: Vec<bool>, s: Vec<bool>) -> [u8; 32] {
-    dbg!(m.len());
-    assert!(s.len() == LAMBDA);
-    let mut hash = m.clone();
-
-    if m.len() <= LAMBDA {
-        let mut m = m.clone();
-        while m.len() < LAMBDA {
-            m.push(false);
-        }
-        return vec_to_arr(m);
+    let mut s = s.clone();
+    while s.len() < LAMBDA {
+        s.push(false);
     }
 
-    while hash.len() > LAMBDA {
-        let l = ((hash.len() as f64 / LAMBDA as f64).log2()).ceil() as u32;
+    if s.len() > LAMBDA {
+        s = s.first_chunk::<LAMBDA>().unwrap().to_vec();
+    }
 
-        let mut m_prime = hash.clone();
-        m_prime.append(&mut vec![false; 2_usize.pow(l) * LAMBDA - hash.len()]);
+    let mut hash = m.clone();
+
+    if hash.len() <= LAMBDA {       // Line 1 of the
+        while hash.len() < LAMBDA { // original algorithm
+            hash.push(false);       //
+        }                           // Return m if LEN(m) too short
+        return vec_to_arr(hash);    //
+    }
+
+    // This is being done instead of recursion;
+    // Rust doesn't have TCO so a recursive apporach
+    // could easily lead to a stack overflow.
+    while hash.len() > LAMBDA {
+        let l = ((hash.len() as f64 / LAMBDA as f64).log2()).ceil() as u32; // Line 2
+
+        let mut m_prime = hash.clone();                               // Line 3
+        m_prime.append(&mut vec![false; 2_usize.pow(l) * LAMBDA - hash.len()]);  // Define m'
 
         let mut block_hashes: Vec<Vec<bool>> = Vec::new();
 
+        // Line 4 and the loop associated with it.
         for i in 0..(2_usize.pow(l-1)) {
             let mut block_hash = s.clone();
             let idx = 2 * i * LAMBDA;
@@ -43,9 +71,13 @@ fn merkle_tree(m: Vec<bool>, s: Vec<bool>) -> [u8; 32] {
             let mut result = [0; 32];
             reader.read(&mut result);
 
-            block_hashes.push(arr_to_vec(result));
+            block_hashes.push(arr_to_vec(&result));
         }
 
+        // Clear the current hash and replace it with
+        // the concatenation of subhashes in order to
+        // replicate the input to what would have been
+        // the next recursive call in the original.
         hash.clear();
         for block in &mut block_hashes {
             hash.append(block);
@@ -55,7 +87,7 @@ fn merkle_tree(m: Vec<bool>, s: Vec<bool>) -> [u8; 32] {
     vec_to_arr(hash)
 }
 
-fn arr_to_vec<const N: usize>(value: [u8; N]) -> Vec<bool> {
+fn arr_to_vec(value: &[u8]) -> Vec<bool> {
     let mut result = Vec::new();
 
     for x in value {
