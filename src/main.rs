@@ -1,3 +1,5 @@
+// Homework group 34
+
 use std::io::{self, Write};
 
 use sha3::{Shake256, digest::{ExtendableOutput, Update, XofReader}};
@@ -28,15 +30,6 @@ fn main() -> io::Result<()> {
 }
 
 fn merkle_tree(m: Vec<bool>, s: Vec<bool>) -> [u8; 32] {
-    let mut s = s.clone();
-    while s.len() < LAMBDA {
-        s.push(false);
-    }
-
-    if s.len() > LAMBDA {
-        s = s.first_chunk::<LAMBDA>().unwrap().to_vec();
-    }
-
     let mut hash = m.clone();
 
     if hash.len() <= LAMBDA {       // Line 1 of the
@@ -44,6 +37,15 @@ fn merkle_tree(m: Vec<bool>, s: Vec<bool>) -> [u8; 32] {
             hash.push(false);       //
         }                           // Return m if LEN(m) too short
         return vec_to_arr(hash);    //
+    }
+
+    let mut s = s.clone();
+    while s.len() < LAMBDA {
+        s.push(false);
+    }
+
+    if s.len() > LAMBDA {
+        s = s.first_chunk::<LAMBDA>().unwrap().to_vec();
     }
 
     // This is being done instead of recursion;
