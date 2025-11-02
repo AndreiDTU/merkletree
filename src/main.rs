@@ -22,6 +22,11 @@ fn main() -> io::Result<()> {
         arr_to_vec(m.as_bytes().try_into().unwrap()),
         arr_to_vec(s.as_bytes().try_into().unwrap()),
     );
+    println!("Hexadecimal:");
+    for byte in tree {
+        print!("0x{:02X} ", byte);
+    }
+    println!("\nUTF-8:");
     for byte in tree {
         print!("{}", byte as char);
     }
@@ -65,7 +70,6 @@ fn merkle_tree(m: Vec<bool>, s: Vec<bool>) -> [u8; 32] {
             let idx = 2 * i * LAMBDA;
             block_hash.append(&mut (m_prime[idx..(idx + 2*LAMBDA)]).to_vec());
             assert!(block_hash.len() > LAMBDA);
-            dbg!(block_hash.first_chunk::<10>());
             
             let mut hasher = Shake256::default();
             hasher.update(&bits_to_bytes(&block_hash));
