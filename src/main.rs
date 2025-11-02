@@ -65,9 +65,10 @@ fn merkle_tree(m: Vec<bool>, s: Vec<bool>) -> [u8; 32] {
             let idx = 2 * i * LAMBDA;
             block_hash.append(&mut (m_prime[idx..(idx + 2*LAMBDA)]).to_vec());
             assert!(block_hash.len() > LAMBDA);
+            dbg!(block_hash.first_chunk::<10>());
             
             let mut hasher = Shake256::default();
-            hasher.update(&vec_to_arr(block_hash));
+            hasher.update(&bits_to_bytes(&block_hash));
 
             let mut reader = hasher.finalize_xof();
             let mut result = [0; 32];
@@ -109,4 +110,14 @@ fn vec_to_arr(value: Vec<bool>) -> [u8; 32] {
         }
         byte
     })
+}
+
+fn bits_to_bytes(bits: &[bool]) -> Vec<u8> {
+    let mut bytes = vec![0u8; (bits.len() + 7) / 8];
+    for (i, bit) in bits.iter().enumerate() {
+        if *bit {
+            bytes[i / 8] |= 1 << (i % 8);
+        }
+    }
+    bytes
 }
